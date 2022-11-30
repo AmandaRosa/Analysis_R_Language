@@ -1,0 +1,153 @@
+---
+title: "Lista do Módulo 5"
+author: "Amanda Rosa Ferreira Jorge - 12112EBI001| PPGEB-UFU | Docente: Prof. Adriano Andrade"
+output: 
+  html_document:
+    highlight: tango
+    includes:
+      after_body: psbfix.html
+---
+
+# Exercício 1 - Considerando o banco de dados de digitos manuscritos, MNIST
+
+## Selecione, a partir das 60.000 amostras disponíveis, 20 exemplos de cada um dos dígitos disponíveis.
+
+```{r}
+library(readr)
+library(dplyr)
+library(imager)
+library(tidyr)
+
+mnist_raw <- read_csv("mnist_train.csv", col_names = FALSE, show_col_types = FALSE) # acessando os dados no formato csv a partir de uma base de dados remota (armazenada em servidor remoto)
+
+# convertendo o tipo de dados para dataframe
+mnist_raw <- as.data.frame(mnist_raw)
+
+
+# são selecionados 20 amostras de cada digito
+
+set.seed(123)
+df_0 <- mnist_raw %>% filter(X1==0) %>% sample_n(20)
+df_1 <- mnist_raw %>% filter(X1==1) %>% sample_n(20)
+df_2 <- mnist_raw %>% filter(X1==2) %>% sample_n(20)
+df_3 <- mnist_raw %>% filter(X1==3) %>% sample_n(20)
+df_4 <- mnist_raw %>% filter(X1==4) %>% sample_n(20)
+df_5 <- mnist_raw %>% filter(X1==5) %>% sample_n(20)
+df_6 <- mnist_raw %>% filter(X1==6) %>% sample_n(20)
+df_7 <- mnist_raw %>% filter(X1==7) %>% sample_n(20)
+df_8 <- mnist_raw %>% filter(X1==8) %>% sample_n(20)
+df_9 <- mnist_raw %>% filter(X1==9) %>% sample_n(20)
+
+df <- as.data.frame(df_0)
+
+df <- bind_rows(df, df_1)
+df <- bind_rows(df, df_2)
+df <- bind_rows(df, df_3)
+df <- bind_rows(df, df_4)
+df <- bind_rows(df, df_5)
+df <- bind_rows(df, df_6)
+df <- bind_rows(df, df_7)
+df <- bind_rows(df, df_8)
+df <- bind_rows(df, df_9)
+
+df <- df[,c(1:785)]
+```
+
+## Faça a redução dimensional do conjunto de dados para a dimensão 2. Para isso, use PCA (selecionar as duas componentes principais)
+
+```{r}
+library(readxl)
+library(dplyr)
+library(tibble)
+library(ggplot2)
+
+df_final <- df[ , 2:ncol(df)]
+pca <- prcomp(df_final, scale = FALSE)
+scoresPC1 <- pca$x[, 1]
+scoresPC2 <- pca$x[, 2]
+labelDigits <- factor(df$X1)
+levels(factor(labelDigits)) # rótulos dos digitos
+
+#cálculo das componentes principais
+
+dfPCA <- data.frame(labelDigits, scoresPC1, scoresPC2)
+
+```
+
+## Divida igualmente o conjunto de dados em conjunto de treinamento e conjunto de teste. Estes dados são os obtidos na letra b.
+
+
+```{r}
+library(caTools)
+
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+
+DD <- as.data.frame(lapply(dfPCA[, c(2:3)], normalize))
+DD <- cbind(DD, labelDigits = dfPCA[, c(1)])
+
+#split data
+train_data <- sample(nrow(dfPCA), 1/2 * nrow(dfPCA))
+digits_train <- DD[train_data, ]
+digits_test <- DD[-train_data, ]
+
+```
+
+
+## Treine uma rede neural do tipo feedforward com o algoritmo backpropagation. Utilize os dados de treinamento da letra c.
+
+```{r}
+library(neuralnet)
+
+
+# Multiclass classification com 5 camadas escondidas
+
+nn <- neuralnet( (labelDigits =='0') + (labelDigits =='1') +
+                   (labelDigits =='2') + (labelDigits =='3') + 
+                   (labelDigits =='4') + (labelDigits =='5') +
+                   (labelDigits =='6') + (labelDigits =='7') + 
+                   (labelDigits =='8') + (labelDigits =='9') ~ scoresPC1 + 
+                   scoresPC2, hidden = 5 , digits_train, linear.output = FALSE)
+
+plot(nn)
+```
+
+> A partir da apresentacao acima podemos verificar que com a arquitetura de 1 camada escondida com 5 neurônios, o erro apresentado para classificados dos digitos de 0 a 9 a partir das duas Componentes Principais calculadas é de 22.59. Devido à amostra nao ser muito grande, a acurácia esperada e possível para este treinamento não é muito eficiente.
+
+## Avalie o resultado do treinamento por meio de uma matriz de confusão. Os dados de treinamento devem ser usados.
+
+> Primeiramente é interessante frisar que a matriz de confusão possui o objetivo que mostrar resumidamente as predições de resultados (outputs) feitos pela rede a partir de um problema de classificação. O número correto e incorreto de predições são apresentados pela matriz. A diagonal principal é a visualização de todos os targets e predições corretas sendo esperado acertos próximos a 100%. As linhas apresentam os targets (classes pertencentes ao problema de classificação) e as colunas são as predições feitas pela rede.
+
+```{r}
+# calculando o valor de predição dos digitos a partir da rede treinada
+pred <- predict(nn, digits_train)
+
+# matriz de confusão
+table(digits_train$labelDigits, apply(pred, 1, which.max))
+
+```
+
+> Quando treinamos a rede com um certo conjunto de dados, chamado de dados de treinamento, são este dados que serão utilizados como entrada para que sejam calculados os pesos, e a partir das saídas e uma retro-alimentacao para ajuste da acurácia, recalcula-se os pesos. As saídas preditivas são as classificações a partir dos dados de entrada. Então, a matriz de confusão a partir dos dados de treinamento apresenta uma classificação de acordo com a acurácia do treinamento porque são os proprios dados do treinamento.
+
+> Do total de 200 amostras, a nossa rede acertou a classificação de 70 amostras (0 a 9) a partir dos dados de treinamento. 
+
+
+
+## Avalie o resultado da generalização por meio de uma matrix de confusão. Os dados de teste devem ser usados.
+
+```{r}
+pred <- predict(nn, digits_test)
+
+# matriz de confusão
+table(digits_test$labelDigits,  apply(pred, 1, which.max))
+```
+
+> A matriz de confusão dos dados de teste, apresentam se de fato a rede possui uma boa classificação. Porque diferentemente dos dados de treinamento, os dados de teste não foram utilizados pela rede durante o treinamento, então pode-se garantir que não há um viés no resultado. Assim, de acordo com esta matriz de confusão pode-se analisar a acurácia da rede de acordo com a generalização, ou seja, o aprendizado de classificação para cada classe do problema.
+
+> Do total de 200 amostras, e a partir do conjunto de teste, a nossa rede acertou a classificação de 28 amostras.
+
+> Certamente com uma melhor arquitetura e uma maior quantidade de amostras, a rede conseguiria aprimorar sua acurácia.
+
+
+

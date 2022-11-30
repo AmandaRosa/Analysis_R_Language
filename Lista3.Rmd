@@ -1,0 +1,425 @@
+---
+title: "Lista do Módulo 3"
+author: "Amanda Rosa Ferreira Jorge - 12112EBI001| PPGEB-UFU | Docente: Prof. Adriano Andrade"
+output: 
+  html_document:
+    highlight: tango
+    includes:
+      after_body: psbfix.html
+---
+
+# Módulo 3
+
+## Exercício 1
+
+
+```{r}
+library(openxlsx)
+library(dplyr)
+library(tidyr)
+library(kableExtra)
+library(ggplot2)
+library(caTools)
+
+#Carregando dados
+df <- read.xlsx("./DadosAntrop.xlsx",
+                sheet = "Tab3",
+                startRow = 2)
+
+#Renomeando colunas
+df <- df %>% rename(idadeemmeses = `Idade.(meses)`,
+              pmin = Peso.mínimo,
+              pmed = Peso.médio,
+              pmax = Peso.máximo)
+
+# convertendo variáveis do tipo caracter em numérico
+df <- df %>% mutate(across(where(is.character), as.numeric))
+```
+
+## Treinamento do Modelo Regressão Linear Simples
+
+```{r}
+set.seed(123)
+split = sample.split(df$idade, SplitRatio = 0.8)
+training_set = subset(df, split == TRUE)
+test_set = subset(df, split == FALSE)
+```
+
+> Tabela de Treinamento 
+
+```{r}
+library(kableExtra)
+training_set %>%
+  kbl() %>%
+  kable_paper("hover", full_width = F)
+```
+> Tabela Conjunto Teste
+
+```{r}
+
+test_set %>%
+  kbl() %>%
+  kable_paper("hover", full_width = F)
+```
+
+>> Apresente os vetores alvo do conjunto de teste e do conjunto de treinamento.
+
+```{r}
+training_target_vector <- training_set$idadeemmeses
+test_target_vector <- test_set$idadeemmeses
+
+print(training_target_vector)
+print(test_target_vector)
+```
+
+> Explique como o conjunto de treinamento e o conjunto de teste podem ser utilizados em um problema de classificação de dados e em um problema de regressão.
+
+>>  o conjunto de treinamento é utilizado para construir o modelo. A partir deste conjunto de treinamento a rede irá inicialmente ajustar os parâmetros (betas). O conjunto de teste é utilizado para verificar como o modelo se comporta em dados não vistos, de forma que possamos ajustar os parâmetros, se necessário, para a construção final do modelo. Na Classificação, a base de treino é submetida ao modelo (classificador) para que seus parâmetros sejam calibrados de acordo com os dados apresentados em categorias ou classes (true or false).Um exemplo de problema de classificação é a predição do valor estimado a partir de variáveis independentes. Realiza-se, assim, a predição da variável dependente (varável que se deseja classificar). Em modelos de Regressão, verifica-se a distância ou o erro entre a saída do modelo e a saída desejada, a partir da análise do R², resíduos, p-valor, significância dos valores independentes em relação à variável dependente estimada pelo modelo. A saída do modelo de regressão é um valor numérico que deve ser o mais próximo possível do valor desejado, e a diferença entre esses valores fornece uma medida de erro de estimação do algoritmo.
+
+> Explique como o desvio padrão do cojunto de treinamento pode interferir na generalização do modelo.
+
+>> O desvio padrão, por definição, apresenta o grau de dispersão apresentado por um certo conjunto de dados. O desvio padrão do conjunto de treinamento é basicamente um termômetro de proporção inversa na inferência e acertividadedo treinamento. Quanto menor variabilidade (menor desvio padrão), melhor generalização do modelo. Por exemplo, se o modelo está classificando e estimando os valores de saída corretamente. Para que a generalização do modelo e a predição da saída do conjunto de treinamento convirjam para os mesmos resultados, é necessário que essa dispersão do conjunto de treinamento não interfira negativamente na eficiência do modelo. Uma forma de diminuir o impacto negativo de um alto desvio padrão do conjunto de dados, é utilizar métodos de pré-processamento (mineiração de dados relevantes para o modelo) para extração  e utilização somente de características com alta significância para a saída do modelo.
+
+## Exercício 2
+
+```{r}
+#Carregando dados MENINAS
+df <- read.xlsx("./DadosUFU.xlsx",
+                sheet = "2",
+                startRow = 4)
+#Renomeando colunas
+df <- df %>% rename(time = `Time`,
+              samples = Samples,
+              cooler = `TempC.coolerest`)
+df <- df %>% filter(time>=0)
+
+
+# convertendo variáveis do tipo caracter em numérico
+df <- df %>% mutate(across(where(is.character), as.numeric))
+
+```
+
+> Apresente o gráfico da relação entre a variável dependente Samples e independente Time
+
+```{r}
+time <- df$time
+samples <- df$samples
+
+ggplot(df, aes(x = time, y=samples)) + 
+  geom_line(size = 3) + labs(x = "Time", y = "Samples" ) +
+  theme_minimal(base_size  = 15)
+```
+
+> Apresente o gráfico da relação entre a variável dependente Temp°C–coolerest e independente Time
+
+```{r}
+coolerest <- df$cooler
+
+ggplot(df, aes(x = time, y=coolerest)) + 
+  geom_line(size = 3) + labs(x = "Time", y = "Tempo ºC - coolerest" ) +
+  theme_minimal(base_size  = 15)
+```
+
+
+> O algoritmo de otimização deverá estimar os valores de μ (média) e σ (desvio padrão) que melhor se ajustam aos dados.
+
+```{r}
+dataset = df[1:2]
+
+```
+
+```{r}
+#dataset %>%
+#  kbl() %>%
+#  kable_paper("hover", full_width = F)
+
+poly_reg = lm(formula = samples ~ poly(time,6) , data = dataset)
+
+y_predicao_func = predict(poly_reg, newdata = dataset)
+
+library(ggplot2)
+ggplot() +
+  geom_point(aes(x = dataset$time, y = dataset$samples),
+             colour = 'gray') +
+  geom_line(aes(x = dataset$time, y = y_predicao_func),
+            colour = 'black') +
+  ggtitle('Time vs Samples - estimativa função gaussiana ') +
+  xlab('Time') +
+  ylab('Samples')
+```
+
+```{r}
+media = mean(y_predicao_func)
+dp = sd(y_predicao_func)
+print('Média Estimada:')
+print(media)
+print('Desvio Padrão Estimado:')
+print(dp)
+```
+
+
+## Exercício 3
+
+```{r}
+#Carregando dados
+df2 <- read.xlsx("./DadosAntrop.xlsx",
+                sheet = "Tab2",
+                startRow = 2)
+df4 <- read.xlsx("./DadosAntrop.xlsx",
+                sheet = "Tab4",
+                startRow = 2)
+
+#Renomeando colunas
+df2 <- df2 %>% rename(idade = `Idade.(meses)`,
+              altmin = Altura.mínima,
+              altmed = Altura.média,
+              altmax = Altura.máxima)
+
+df4 <- df4 %>% rename(idade = `Idade.(meses)`,
+              altmin = Altura.mínima,
+              altmed = Altura.média,
+              altmax = Altura.máxima)
+
+# convertendo variáveis do tipo caracter em numérico
+df2 <- df2 %>% mutate(across(where(is.character), as.numeric))
+df4 <- df4 %>% mutate(across(where(is.character), as.numeric))
+```
+
+> Calcule o modelo linear de primeira ordem que relacione altura (variável dependente) e idade (variável independente) para meninas de até 2 anos de idade. 
+>> Regressão Linear Df2
+
+```{r}
+lm2 = lm(formula = df2$altmed ~ df2$idade,
+               data = df2)
+summary(lm2)
+```
+
+> Calcule o modelo linear de primeira ordem que relacione altura (variável dependente) e idade (variável independente) para meninos de até 2 anos de idade.
+>> Regressão Linear Df4
+
+```{r}
+lm4 = lm(formula = df4$altmed ~ df4$idade,
+               data = df4)
+summary(lm4)
+```
+
+> Qual a interpretação do parâmetro β1 estimado para os itens a e b.
+
+>> O que pode-se aferir dos valores β1 apresentados é que a idade analisada para as estimativas de altura média possui alta significância, apresentando '***' de relevância entre ambas variáveis. Para as meninas β1 apresentou valor de 1.38 e para os meninos de 1.34. Isto significa uma correlação positiva entre altura média e idade. Ou seja, tanto para as meninas quanto para os meninos de até 2 anos, maior a idade, maior a altura média da categoria com peso acima de 1. E, portanto, o passo de aumento da idade, há o aumento em β1 na altura média estimada, em 1.38 para as meninas e 1.34 para os meninos.
+
+> Apresente uma análise dos resíduos dos modelos obtidos nos itens a e b.
+
+>> Os valores residuais apresentam características estatísticas da análise em quartis e a variação do valor máximo e minimo dos dados analisados. Para as meninas, a mediana de acréscimo de altura por acréscimo de meses na idade foi de 0.71 e para os meninos, 0.64. De inicio, consegue-se aferir que a altura media inicial dos meninos é maior do que das meninas. 
+
+
+> Apresente os gráficos dos valores de saída calculados por cada um dos modelos de forma a contrastar com os dados utilizados para construir o modelo.
+
+```{r}
+#para MENINAS
+y_predicao_meninas = predict(lm2, newdata = df2)
+
+library(ggplot2)
+ggplot() +
+  geom_point(aes(x = df2$idade, y = df2$altmed),
+             colour = 'red') +
+  geom_line(aes(x = df2$idade, y = y_predicao_meninas),
+            colour = 'blue') +
+  ggtitle('Idade vs Altura Media p/ Meninas de até 2 anos') +
+  xlab('Idade') +
+  ylab('Altura Média')
+
+```
+
+```{r}
+#para MENINOS
+y_predicao_meninos = predict(lm4, newdata = df4)
+
+library(ggplot2)
+ggplot() +
+  geom_point(aes(x = df4$idade, y = df4$altmed),
+             colour = 'red') +
+  geom_line(aes(x = df4$idade, y = y_predicao_meninos),
+            colour = 'blue') +
+  ggtitle('Idade vs Altura Media p/ Meninos de até 2 anos') +
+  xlab('Idade') +
+  ylab('Altura Média')
+
+
+```
+
+## Exercício 4
+
+```{r}
+#Carregando dados MENINAS
+df2_1 <- read.xlsx("./DadosAntrop.xlsx",
+                sheet = "Tab1",
+                startRow = 3)
+df2_2 <- read.xlsx("./DadosAntrop.xlsx",
+                sheet = "Tab2",
+                startRow = 2)
+#Renomeando colunas
+df2_1 <- df2_1 %>% rename(idade = `Idade.(meses)`,
+              pmin = Peso.mínimo,
+              pmed = Peso.médio,
+              pmax = Peso.máximo)
+df2_2 <- df2_2 %>% rename(idade = `Idade.(meses)`,
+              altmin = Altura.mínima,
+              altmed = Altura.média,
+              altmax = Altura.máxima)
+
+df2 <- merge(df2_1,df2_2)
+
+df2 %>%
+  kbl() %>%
+  kable_paper("hover", full_width = F)
+
+#Carregando dados MENINOS
+df4_1 <- read.xlsx("./DadosAntrop.xlsx",
+                sheet = "Tab3",
+                startRow = 2)
+df4_2 <- read.xlsx("./DadosAntrop.xlsx",
+                sheet = "Tab4",
+                startRow = 2)
+#Renomeando colunas
+df4_1 <- df4_1 %>% rename(idade = `Idade.(meses)`,
+              pmin = Peso.mínimo,
+              pmed = Peso.médio,
+              pmax = Peso.máximo)
+df4_2 <- df4_2 %>% rename(idade = `Idade.(meses)`,
+              altmin = Altura.mínima,
+              altmed = Altura.média,
+              altmax = Altura.máxima)
+
+df4 <- merge(df4_1,df4_2)
+
+df4 %>%
+  kbl() %>%
+  kable_paper("hover", full_width = F)
+
+# convertendo variáveis do tipo caracter em numérico
+df2 <- df2 %>% mutate(across(where(is.character), as.numeric))
+df4 <- df4 %>% mutate(across(where(is.character), as.numeric))
+```
+
+> Construa e avalie um modelo linear de 1ª ordem que estime a idade de meninas de até 2 anos de idade em função da altura e do peso. - Regressão Linear Multipla
+
+```{r}
+lm2 <- lm(idade ~ . , data = df2)
+summary(lm2)
+```
+
+>> Podemos verificar, que as características mais relevantes para aferir a idade são principalmente: altura minima e altura máxima, e o intercepto. Com relevância de 0.1, o peso médio possui influencia. Realizando uma extração de características, podemos treinar nosso modelo, com apenas estas características relevantes. Este modelo se apresentou com alta eficiência devido ao Adjusted R-squared bastante próximo a 1. 
+
+```{r}
+confint(lm2, level=0.95)
+```
+
+>> De acordo com os intervalos de confiança do parâmetros do modelos, o peso minimo, o peso medio, peso máximo e altura media podem variar com relação à correlação positiva ou negativa com a idade. Por isso são características que não apresentam uma relevância signifcativa para a estimativa de idade do grupo de meninas.
+
+```{r}
+# install.packages('caTools')
+library(caTools)
+set.seed(123)
+split = sample.split(df2$idade, SplitRatio = 0.8)
+training_set = subset(df2, split == TRUE)
+test_set = subset(df2, split == FALSE)
+
+previsao = predict(lm2, data=df2)
+
+ggplot(df2, aes(x = pmed , y = fitted(lm2) )) +
+  geom_point(size = 3) + labs(x = "Peso", y = "Idade" ) +  theme_minimal(base_size  = 20) +
+  ggtitle(' Peso vs Idade - Meninas ') +
+  geom_line(aes(x = pmed, y = idade  ), 
+            color = "pink", size = 1) 
+```
+```{r}
+ggplot(df2, aes(x = altmed, y =idade)) +
+  geom_point(size = 3) + labs(x = "altura (cm)", y = "idade" ) +  theme_minimal(base_size  = 20) +
+  ggtitle(' Altura vs Idade - Meninas ') +
+  geom_line(aes(x = altmed, y = fitted(lm2)), color = "pink", size = 1)
+```
+
+
+```{r}
+ggplot(data = df2, aes(x = residuals(lm2))) +
+  geom_histogram(aes(y=..density..), bins = 5,
+                 colour="black", fill="white") +
+   ggtitle(' Inspeção da forma da distribuição de ϵ  ') +
+  geom_density(alpha=.2, fill="#FF6666") +
+  labs(x = "resíduos", y = "frequência (normalizada)") +  theme_minimal(base_size  = 20)
+```
+
+>> Visto que diante dos modelos de regressão linear é esperado uma distribuição de probabilidade dos resíduos normal/gaussiana. O gráfico apresentado acima é uma inspeção da forma da distribuição de ϵ, a partir dos resíduos calculados, e apresentam uma aproximação de uma função normal levemente deslocada para a esquerda.
+
+```{r}
+ggplot(data = df2, aes(sample  = residuals(lm2))) +
+  stat_qq(size = 3) +
+  ggtitle(' Gráfico de probablidade Q-Q ') +
+  stat_qq_line() + labs(x = "resíduos", y = "y" ) +  theme_minimal(base_size  = 20)
+```
+
+>> É interessante que o gráfico acima (gráfico Q-Q) é utilizado para verificar se a distribuição é normal e se o modelo utilizado na predição é confiável. Como visto, há relação linear entre os dados e a versão normalizada (z-scores). Então nosso modelo gerado possui confiabilidade gratantida.
+
+> Construa e avalie um modelo linear de 2ª ordem que estime a idade de meninos de até 2 anos de idade em função da altura e do peso. - Regressão Polinomial
+
+```{r}
+ lm4 <- lm(idade ~ poly(altmin,2) + 
+             poly(altmed,2)+
+             poly(altmax,2)+
+             poly(pmin,2)+
+             poly(pmed,2)+
+             poly(pmax,2) , data = df4)
+#lm4 <- lm(idade ~poly(pmin,2), data = df4)
+summary(lm4)
+```
+
+>> Podemos verificar, para o grupo de meninos, que as características mais relevantes para aferir a idade são principalmente: peso minimo e o intercepto. Realizando uma extração de características, o relatório estatístico nos diz que podemos treinar futuramente nosso modelo, com apenas estas características relevantes (pré-processamento). Este modelo se apresentou com alta eficiência devido ao Adjusted R-squared igual a 1. 
+
+```{r}
+confint(lm4, level=0.95)
+```
+
+>> De acordo com os intervalos de confiança do parâmetros do modelos, a altura minima, media e maxima, o peso medio e peso máximo podem variar com relação à correlação positiva ou negativa com a idade. Por isso são características que não apresentam uma relevância signifcativa para a estimativa de idade do grupo de meninos.
+
+
+```{r}
+ggplot(df4, aes(x = pmed, y =idade)) +
+  geom_point(size = 3) + labs(x = "peso(kg)", y = "idade" ) +  theme_minimal(base_size  = 20) +
+  ggtitle(' Peso vs Idade - Meninos ') +
+  geom_line(aes(x = pmed, y = fitted(lm4)), color = "blue", size = 1)
+```
+
+```{r}
+ggplot(df4, aes(x = altmed, y =idade)) +
+  geom_point(size = 3) + labs(x = "altura (cm)", y = "idade" ) +  theme_minimal(base_size  = 20) +
+  ggtitle(' Altura vs Idade - Meninos ') +
+  geom_line(aes(x = altmed, y = fitted(lm4)), color = "blue", size = 1)
+```
+```{r}
+ggplot(data = df4, aes(x = residuals(lm4))) +
+  geom_histogram(aes(y=..density..), bins = 5,
+                 colour="black", fill="white") +
+   ggtitle(' Inspeção da forma da distribuição de ϵ ') +
+  geom_density(alpha=.2, fill="#00A3FF") +
+  labs(x = "resíduos", y = "frequência (normalizada)") +  theme_minimal(base_size  = 20)
+```
+
+>> De acordo com o grafico acima, a inspeção da distribuição de ϵ na predição dos dados para os meninos, possui resíduos em forma normal levemente descolada para a direita.
+
+```{r}
+ggplot(data = df4, aes(sample  = residuals(lm4))) +
+  stat_qq(size = 3) +
+  ggtitle(' Gráfico de probablidade Q-Q ') +
+  stat_qq_line() + labs(x = "resíduos", y = "y" ) +  theme_minimal(base_size  = 20)
+
+```
+
+>> Igualmente ao gráfico para análise do modelo para os dados das meninas. Os dados dos meninos possui uma relação linear em comparação com a versão normalizada (z-scores). Então nosso modelo gerado possui confiabilidade gratantida.
+
+> Baseado na análise dos modelos obtidos nos itens a e b, qual dos dois modelos produziu o menor erro quadrático dos resíduos?
+
+>> O modelo polinomial apresentou o menor erro quadrático dos resíduos. Visto que o modelo polinomial apresenta maior versatilidade e adaptação por ser um modelo não-linear bem como os dados apresentados em crescimento das crianças em sua fase de vida inicial.
+
+> Qual a interpretação do parâmetro β para os modelos criados nos itens a e b.
+
+>> Os meninos apresentam intercepto maior do que as meninas, ou seja, já nascem com uma altura maior e de acordo com β1, sendo a inclinação das estimativas, os meninos apresentam uma maior variação de peso e de altura. 

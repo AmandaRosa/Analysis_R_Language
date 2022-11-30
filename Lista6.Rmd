@@ -1,0 +1,446 @@
+---
+title: "Lista do Módulo 6"
+author: "Amanda Rosa Ferreira Jorge - 12112EBI001| PPGEB-UFU | Docente: Prof. Adriano Andrade"
+output: 
+  html_document:
+    highlight: tango
+    includes:
+      after_body: psbfix.html
+---
+
+# Exercício 1 - Considerando o banco de dados de digitos manuscritos, MNIST
+
+## Selecione, a partir das 60.000 amostras disponíveis, 20 exemplos de cada um dos dígitos disponíveis.
+
+```{r message=FALSE}
+library(readr)
+library(dplyr)
+library(imager)
+library(tidyr)
+library(stringr)
+
+mnist_raw <- read_csv("mnist_train.csv", col_names = FALSE, show_col_types = FALSE) # acessando os dados no formato csv a partir de uma base de dados remota (armazenada em servidor remoto)
+
+# convertendo o tipo de dados para dataframe
+mnist_raw <- as.data.frame(mnist_raw)
+
+
+# são selecionados 20 amostras de cada digito
+
+set.seed(123)
+df_0 <- mnist_raw %>% filter(X1==0) %>% sample_n(20)
+df_1 <- mnist_raw %>% filter(X1==1) %>% sample_n(20)
+df_2 <- mnist_raw %>% filter(X1==2) %>% sample_n(20)
+df_3 <- mnist_raw %>% filter(X1==3) %>% sample_n(20)
+df_4 <- mnist_raw %>% filter(X1==4) %>% sample_n(20)
+df_5 <- mnist_raw %>% filter(X1==5) %>% sample_n(20)
+df_6 <- mnist_raw %>% filter(X1==6) %>% sample_n(20)
+df_7 <- mnist_raw %>% filter(X1==7) %>% sample_n(20)
+df_8 <- mnist_raw %>% filter(X1==8) %>% sample_n(20)
+df_9 <- mnist_raw %>% filter(X1==9) %>% sample_n(20)
+
+df <- as.data.frame(df_0)
+
+df <- bind_rows(df, df_1)
+df <- bind_rows(df, df_2)
+df <- bind_rows(df, df_3)
+df <- bind_rows(df, df_4)
+df <- bind_rows(df, df_5)
+df <- bind_rows(df, df_6)
+df <- bind_rows(df, df_7)
+df <- bind_rows(df, df_8)
+df <- bind_rows(df, df_9)
+
+df <- df[,c(1:785)]
+
+df <- df[ , 1:ncol(df)] %>% rename(labelDigits = X1) 
+df$labelDigits <- as.character(df$labelDigits)
+
+levels(factor(df$labelDigits))
+
+
+```
+
+## Faça a redução dimensional do conjunto de dados para a dimensão 2. Para isso, use LDA. 
+
+```{r message=FALSE}
+library(tidyverse) 
+library(caret) 
+library(MASS)
+
+library(caTools)
+set.seed(123)
+
+
+#removendo colunas cujos todos elementos possuem soma Zero
+digits <- df[,1, drop=FALSE]
+elements <- df[,2:785, drop=FALSE]
+df1 <- df[colSums(abs(elements)) > 0]
+
+
+Df <- as.data.frame(c(digits, df1))
+Df <- Df[,sapply(Df , function(v) var(v, na.rm=TRUE)!=0)]
+
+
+training.samples <- Df$labelDigits %>% createDataPartition(p = 1, list = FALSE)
+train.data <- Df[ training.samples, ] 
+digits_train <- train.data[,1, drop=FALSE]
+
+
+preproc.param <- train.data %>% preProcess( method = c("center", "scale"))
+
+# Transform the data using the estimated parameters
+
+train.transformed <- preproc.param %>% predict(train.data)
+elements_train <- train.transformed[,2:ncol(train.transformed), drop=FALSE]
+train <- elements_train[colSums(abs(elements_train)) > 0]
+df_train <- as.data.frame(c(digits_train, train))
+
+# Fit the model 
+
+model <- lda( labelDigits ~., data = df_train)
+
+model
+
+```
+```{r}
+plot (model)
+```
+
+
+```{r }
+pred_LDA = as.data.frame(predict(model, df_train))
+pred_LDA_train = pred_LDA[c(12,13,14,15,16,17,18,19,20,1)]
+
+```
+
+### Declarando função para Plot da Matriz de Confusão
+
+```{r}
+conf_matrix <- function(df.true, df.pred, title = "", true.lab ="True Class", pred.lab ="Predicted Class",
+                        high.col = 'blue', low.col = 'white') {
+  #convert input vector to factors, and ensure they have the same levels
+  df.true <- as.factor(df.true)
+  df.pred <- factor(df.pred, levels = levels(df.true))
+  
+  #generate confusion matrix, and confusion matrix as a pecentage of each true class (to be used for color) 
+  df.cm <- table(True = df.true, Pred = df.pred)
+  df.cm.col <- df.cm / rowSums(df.cm)
+  
+  #convert confusion matrices to tables, and binding them together
+  df.table <- reshape2::melt(df.cm)
+  df.table.col <- reshape2::melt(df.cm.col)
+  df.table <- left_join(df.table, df.table.col, by =c("True", "Pred"))
+  
+  #calculate accuracy and class accuracy
+  acc.vector <- c(diag(df.cm)) / c(rowSums(df.cm))
+  class.acc <- data.frame(Pred = "Class Acc.", True = names(acc.vector), value = acc.vector)
+  acc <- sum(diag(df.cm)) / sum(df.cm)
+  
+  #plot
+      ggplot() +
+      geom_tile(aes(x=Pred, y=True, fill=value.y),
+      data=df.table, size=0.2, color=grey(0.5)) +
+      geom_tile(aes(x=Pred, y=True),
+      data=df.table[df.table$True==df.table$Pred, ], size=2, color="black", fill = 'transparent')       +
+      scale_x_discrete(position = "top",  limits = c(levels(df.table$Pred), "")) +
+      scale_y_discrete(limits = rev(unique(levels(df.table$Pred)))) +
+      labs(x=pred.lab, y=true.lab, fill=NULL,
+      title= paste0(title, "\nAccuracy ", round(100*acc, 1), "%")) +
+      geom_text(aes(x=Pred, y=True, label=value.x),
+      data=df.table, size=4, colour="black") +
+      guides(size=F) +
+      theme_bw() +
+      theme(panel.border = element_blank(), legend.position = "bottom",
+      axis.text = element_text(color='black'), axis.ticks = element_blank(),
+      panel.grid = element_blank(), axis.text.x.top = element_text(angle = 30, vjust = 0, hjust = 0)) +
+      coord_fixed()
+
+} 
+```
+
+
+```{r}
+LD1 <- pred_LDA$x.LD1
+LD2 <- pred_LDA$x.LD2
+LD3 <- pred_LDA$x.LD3
+LD4 <- pred_LDA$x.LD4
+LD5 <- pred_LDA$x.LD5
+LD6 <- pred_LDA$x.LD6
+LD7 <- pred_LDA$x.LD7
+LD8 <- pred_LDA$x.LD8
+class <- pred_LDA$class
+
+ggplot( pred_LDA, aes( LD1, LD2)) + geom_point( aes( color = class)) + ggtitle('LD1 X LD2')
+
+```
+
+>> No gráfico LD1xLD2, o digito 0 está bem demarcado na região inferior esquerda, o digito 2 um pouco acima também bem agrupado. Os digitos 9, 7 e 4 também estao bem demarcados ainda que próximos. O digito 6 na parte superior do gráfico apresenta uma leve dispersão. O digito 3 está também agrupado na região central do gráfico. Por fim, os digitos 8, 5 e 1 apresentaram uma dispersão que pode interferir nas classificações.
+
+```{r}
+ggplot( pred_LDA, aes( LD3, LD4)) + geom_point( aes( color = class)) + ggtitle('LD3 X LD4')
+ggplot( pred_LDA, aes( LD5, LD6)) + geom_point( aes( color = class)) + ggtitle('LD5 X LD6')
+ggplot( pred_LDA, aes( LD7, LD8)) + geom_point( aes( color = class)) + ggtitle('LD7 X LD8')
+```
+
+>> Acima são apresentados os gráficos bidimensionais para todas as LDAs calculadas exceto a LD9. Podemos verificar que realmente para as duas componentes principais, há uma melhor separação e agrupamento das classes dos digitos. Decaindo, assim, tal "discrepância" do agrupamento entre as classes aos longo das componentes calculadas. 
+
+
+## Construa um gráfico que ilustre a região de decisão de cada uma das classes.
+
+```{r message=FALSE}
+library(MASS)
+library(klaR)
+
+# dataframe de treinamento do LDA
+pred_PARTITION <- pred_LDA_train[c(1,2,10)]
+
+partimat(class ~ ., data = pred_PARTITION, method = "lda") 
+
+```
+
+>> No gráfico acima podemos ver que a partir das 2 componentes principais lineares, a classificação dos digitos está satisfatória, apresentando somente alguns erros entre os digitos 8,5 e 1.
+
+
+## Divida igualmente o conjunto de dados em conjunto de treinamento e conjunto de teste. Estes dados são os obtidos na letra b.
+
+
+```{r message=FALSE}
+library(caTools) 
+
+Df_LDA <- pred_LDA
+
+#split data
+train_data <- sample(nrow(Df_LDA), 1/2 * nrow(Df_LDA))
+digits_train <- Df_LDA[train_data, ]
+digits_test <- Df_LDA[-train_data, ]
+
+```
+
+
+## Treine uma rede neural do tipo feedforward com o algoritmo backpropagation. Utilize os dados de treinamento da letra c.
+
+```{r message=FALSE}
+library(neuralnet)
+
+# Multiclass classification com 5 camadas escondidas
+nn <- neuralnet( (class =='0') + (class =='1') +
+                   (class =='2') + (class =='3') + 
+                   (class =='4') + (class =='5') +
+                   (class =='6') + (class =='7') + 
+                   (class =='8') + (class =='9') ~ x.LD1 + 
+                   x.LD2, hidden = c(15,15,15) , digits_train, linear.output = FALSE)
+
+plot(nn)
+```
+
+## Avalie o resultado do treinamento por meio de uma matriz de confusão. Os dados de treinamento devem ser usados.
+
+```{r}
+pred_RNA_train <- predict(nn, digits_train)
+
+# matriz de confusão
+conf1 <- table(digits_train$class, apply(pred_RNA_train, 1, which.max)-1)
+confusionMatrix(conf1)
+```
+
+>> Com o conjunto de treinamento, a acurácia do RNA alcançou a acurácia de 96%.
+
+
+## Avalie o resultado da generalização por meio de uma matrix de confusão. Os dados de teste devem ser usados.
+
+```{r}
+pred_RNA_test <- predict(nn, digits_test)
+
+# matriz de confusão
+conf2 <- table(digits_test$class,  apply(pred_RNA_test, 1, which.max)-1)
+
+confusionMatrix(conf2)
+```
+
+>> Com o conjunto de teste, a acurácia do RNA alcançou a acurácia de 75%.
+
+## Avaliação entre LDA e RNA
+
+```{r message=FALSE}
+library(yardstick)
+library(ggplot2)
+library(caret)
+
+# Com relação à analise com dados de teste o LDA e o RNA apresentaram a seguinte performance:
+
+#LDA - accuracy
+table(Predicted=pred_LDA$class, Original=train.transformed$labelDigits)
+acc_LDA <- mean(pred_LDA$class == train.transformed$labelDigits)
+
+#RNA - accuracy
+pred_RNA <- predict(nn, Df_LDA)
+pred_RNA <- as.data.frame(cbind(pred_RNA, class = apply(pred_RNA, 1, which.max)-1))
+table_RNA_completo <- table(Predicted=pred_RNA$class, Original=Df_LDA$class) 
+acc_RNA <- mean(pred_RNA$class == Df_LDA$class)
+
+
+print('Acuracia LDA:')
+print(acc_LDA)
+print('Acuracia RNA:')
+print(acc_RNA)
+
+par(mfrow=c(2,1))
+conf_matrix(train.transformed$labelDigits,pred_LDA$class, title = "Conf. Matrix LDA")
+conf_matrix(Df_LDA$class,pred_RNA$class, title = "Conf. Matrix RNA")
+```
+
+>> A partir do Linear Discriminant Analysis (LDA), a acurácia do modelo chegou a 99.5% de perfomance, sendo um ótimo resultado na classificação. A partir do RNA, a acurácia do modelo apresentou 85.5% de acurácia, ficando abaixo, então, da perfomance da LDA. Enquanto o LDA errou apenas uma classificação para o digito 5, o RNA errou algumas rotulações para os digitos 1,3,4,5,6,7,8,9.
+
+
+# Exercicio 2  
+
+## A validação e teste de modelos é de grande relevância na área de Reconhecimento de Padrões e Aprendizado de Máquina. Defina (apresente as equações e defina cada termo da equação) cada uma das métricas abaixo
+
+> Accuracy (Acc)
+
+>> A acurácia tem como principal objetivo para avaliar o desempenho entre diferentes modelos de predição. A acurácia é dada pela quantidade de acertos sobre o numero total de classificações. Sendo assim, possui a seguinte fórmula:
+
+>> Acc = (nº de predições corretas)/ (nº total de predições) = (TP+TN)/(TP+FP+TN+FN)
+
+>> Onde TP = True Positive; TN = True Negative; FP = False Positive; FN = False Negative
+
+> Recall/Sensitivity (Sc)
+
+>> O recall ou sensibilidade é a probabilidade de um teste positivo dado que o componente realmente pertence à classe analisada. Em outras palavras, a sensibilidade é o número de resultados positivos verdadeiros dividido pelo número de todas as amostras que deveriam ter sido identificadas como positivas. A Taxa de Verdadeiro Positivo refere-se à proporção de quem tem condição de receber resultado positivo no teste.
+
+>> Formula: Recall = (TP)/(TP+FN)
+
+> Specificity (Sp)
+
+>> A especificidade está relacionada à capacidade do teste de rejeitar corretamente um componente em uma classe específica. A Sp de um modelo é a proporção de quem realmente não tem a condição e que o teste é negativo para esta condição/classificação.
+
+>> Formula: Sp = (TN) / (TN + FP)
+
+> Precision
+
+>> A informação sobre a precisão visa responder a seguinte questão: que proporção de classificações positivas estavam realmente corretas? Ou seja, a precisão mede quais são os verdadeiros positivos em todos os componentes classificados em determinada classe, corretos ou errados.
+
+>> Formula: Precision = (TP) / (TP+FP)
+
+> F1-Score
+
+>> Geralmente a F-score é uma medida que avalia a acurácia do conjunto de teste. O F-scre é calculado a partir da precisão e sensibilidade do teste. O F1-score é calculado a partir da média harmônica da precisão e sensibilidade. Podemos verificar que o maior valor para a F-score é 1.0, indicando que há um precision e recall perfeitos. O F1-score é também conhecido como Dice Similarity Coefficient (DSC)
+
+>> Formula: F1-score = 2 * (precision * recall)/(precision + recall)
+
+> Curva ROC
+
+>> A curva ROC, receiver operating characteristic curve, é um gráfico que apresenta a perfomance das classificações do modelo a partir de um limiar de todas as classificações. Essa curva apresenta 2 parâmetros: True Positive Rate (Taxa de Verdadeira Afirmação) e False Positive Rate (Taxa de Falsa Afirmação). Quanto mais próximo a curva para classificação de uma classe está do TPR = 1, melhor é a performanca da classificação do modelo para aquela classe. Quanto mais próximo a curva está do FPR = 1, pior é a habilidade de classificação pelo modelo daquela classe.
+
+# Exercicio 3
+
+## Calcule cada uma das métricas definidas na questão 2 para os resultados de classificação da RNA e da LDA obtidos na questão 1.
+
+```{r message=FALSE}
+library(caret)
+library(e1071)
+library(pROC)
+
+LDA <- confusionMatrix(as.factor(pred_LDA$class), as.factor(train.transformed$labelDigits))
+LDA
+
+RNA <- confusionMatrix(as.factor(pred_RNA$class),as.factor(Df_LDA$class))
+RNA
+```
+## Accuracy
+
+```{r}
+accuracy_LDA <- LDA$overall['Accuracy']
+accuracy_RNA <- RNA$overall['Accuracy']
+print('Acurácia LDA:')
+accuracy_LDA
+print('Acurácia RNA:')
+accuracy_RNA
+```
+
+
+## Recall/Sensitivity (Sc)
+
+```{r}
+LDA_byclass <- as.data.frame(LDA$byClass)
+sc_LDA <- LDA_byclass$Sensitivity
+
+RNA_byclass <- as.data.frame(RNA$byClass)
+sc_RNA <- RNA_byclass$Sensitivity
+print('Sensitivity LDA:')
+print('Sensitivity por classe:')
+sc_LDA
+print('Sensitivity RNA:')
+print('Sensitivity por classe:')
+sc_RNA
+```
+
+## Specificity (Sp)
+
+```{r}
+sp_LDA <- LDA_byclass$Specificity
+
+
+sp_RNA <- RNA_byclass$Specificity
+
+print('Specificity LDA:')
+print('Specificity por classe:')
+sp_LDA
+print('Specificity RNA:')
+print('Specificity por classe:')
+sp_RNA
+```
+
+## Precision (Pos Pred Value)
+
+```{r}
+pp_LDA <- LDA_byclass$`Pos Pred Value`
+
+
+pp_RNA <- RNA_byclass$`Pos Pred Value`
+
+print('Precision LDA:')
+print('Precision por classe:')
+pp_LDA
+print('Precision RNA:')
+print('Precision por classe:')
+pp_RNA
+```
+## F1-score
+
+```{r}
+
+f1_score <- function(precision, recall) {
+  f1 <- 2 * ((precision * recall) / (precision + recall))
+  return(f1)
+}
+
+f1_LDA <- f1_score(sp_LDA, pp_LDA)
+
+f1_RNA <- f1_score(sp_RNA, pp_RNA)
+
+print('F1-score LDA:')
+print('F1-score por classe:')
+f1_LDA
+print('F1-score RNA:')
+print('F1-score por classe:')
+f1_RNA
+```
+# ROC Curve 
+
+```{r}
+library(pROC)
+
+#LDA
+multiclass.roc(as.numeric(train.transformed$labelDigits), as.numeric(pred_LDA$class), levels = c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
+
+#RNA
+
+multiclass.roc(Df_LDA$class, pred_RNA$class, levels = c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))
+
+```
+
+>> A área abaixo da curva considerando uma curva ROC de várias classes, a ROC curve dos dados do aprendizado de LDA obteve uma maior área abaixo da curva, o que indica mais próximo do valor 1 com relação à sensitividade. Obteve o valor de AUC = 0.9961. Já a área abaixo da curva (AUC) para o modelo RNA, obteve um menor valor, sendo AUC = 0.8849. Demonstrando que uma perfomance abaixo da LDA de acordo com a classificação e aprendizado do modelo considerado, RNA.
+
+

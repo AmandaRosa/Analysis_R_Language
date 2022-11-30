@@ -1,0 +1,157 @@
+---
+title: "Lista do Módulo 7"
+author: "Amanda Rosa Ferreira Jorge - 12112EBI001| PPGEB-UFU | Docente: Prof. Adriano Andrade"
+output: 
+  html_document:
+    highlight: tango
+    includes:
+      after_body: psbfix.html
+---
+
+# 1 . Descreva os principais passos envolvidos no algoritmo k-means. Dica: faça uma busca na literatura (artigos, livros ou tutoriais).
+
+> O algoritmo K-Means é um algoritmo que visa minimizar uma função objetiva conhecida como função de erro quadrático.  
+
+> Os passos para sua construção são os seguintes:
+
+>> 1) Determinar a quantidade de centros "k" (um para cada cluster/agrupamento). A melhor opção é colocá-los o mais longe possível um do outro.
+
+>> 2) Calculamos a distância entre cada ponto de dados e centros de cada cluster.
+
+>> 3) Atribuímos o ponto de dados ao centro do cluster cuja distância do centro do cluster é mínima de todos os centros arranjados.
+
+>> 4) Recalculamos os novos centróide de cada cluster. Vamos supor um exemplo para ficar mais claro:
+
+>>> Para cada cluster, temos os valores de todos os membros de um certo agrupamento. Por exemplo, se um cluster de dados consistisse em pontos (80, 56), (75, 53), (60, 50) e (68,54). A soma dos valores seria (283, 213). Em seguida, dividimos o total pelo número de membros do cluster. Neste exemplo, então, temos 283 dividido por 4 = 70,75 e 213 dividido por 4 = 53,25. Então, o centróide do cluster é (70,75, 53,25).
+
+>> 5) Recalculamos a distância entre cada ponto de dados e os novos centros de cluster obtidos. Uma vez realocado os centróides dos clusters, determinamos se algum ponto está mais próximo de um centróide de outro cluster do que do centróide de seu próprio cluster. Se algum ponto estiver mais próximo de um centróide diferente, redistribuimos para o cluster que contém o centróide mais próximo.
+
+>> 6) Se nenhum ponto de dados precisar ser redistribuído, pare, caso contrário, repita a partir do passo 3).
+
+
+# 2.  Descreva os principais passos envolvidos no algoritmo para o cálculo do Dendrograma. Dica: faça uma busca na literatura (artigos, livros ou tutoriais).
+
+> Um Dendrograma é um diagrama que visa mostrar a relação hierárquica entre os componentes analisados. É mais comumente criado como uma saída de cluster hierárquico. Assim, possui como principal objetivo descobrir a melhor maneira de alocar componentes aos clusters. Considerando os elementos de um datase, o Dendrograma é construído da seguinte forma:
+
+>> 1) Primeiro calcular a Matrix de Distâncias de acordo com a distância euclidiana entre os elementos.
+
+>> 2) As menores distâncias na matriz serão associados a um nó (1º clusters). Na base do Dendrograma.
+
+>> 3) Uma nova matriz de distâncias, considerando os clusters previamente encontrados, é calculada. Agora serão as distâncias entre os elementos e os 1ºs clusters.
+
+>> 4) Encontrar os menores valores novamente na nova matriz e os elementos relacionados que irão compor os 2ºs clusters (no 'degrau de pesos' digamos assim) em cada ramo da árvore.
+
+>> 5) Novamente a matriz de distâncias é recalculada considerando os dois clusters encontrados e os elementos "restantes". 
+
+>> 6) Encontrar novamente o menor valor (as menores distâncias), e novamente os elementos relacionados nestes menores valores será outro nó, ou seja, 3º cluster, de acordo com os diferentes ramos em que se encontram.
+
+>> 7) Repetir o processo até que o ultimo cluster seja encontrado.
+
+> Obs: O Dendrograma possui sua ordenação hierárquica ascendente. Ou seja, quanto mais próximo da base maior relação entre os componentes. Quanto mais próximo ao topo, mais distante a relação entre os componentes nos nós presentes nessa região. Se considerarmos a estrutura completa como uma árvore, verificamos a construção do Dendrograma das "folhas", ramo mais intimamente relacionado, até o "tronco", ramo mais generalizado.
+
+
+# 3. Considerando o banco de dados de dígitos manuscritos, MNIST
+
+
+## 3.a) Selecione aleatoriamente, a partir das 60.000 amostras disponíveis, 20 exemplos de três - apenas três - dígitos disponíveis.
+
+```{r message=FALSE}
+library(readr)
+library(dplyr)
+library(imager)
+library(tidyr)
+library(stringr)
+
+mnist_raw <- read_csv("mnist_train.csv", col_names = FALSE, show_col_types = FALSE) # acessando os dados no formato csv a partir de uma base de dados remota (armazenada em servidor remoto)
+
+# convertendo o tipo de dados para dataframe
+mnist_raw <- as.data.frame(mnist_raw)
+
+
+# são selecionados 20 amostras de três digitos aleatorios
+
+set.seed(123)
+x <- sample(0:9, 3, replace=F)
+df_part1 <- mnist_raw %>% filter(X1==x[1]) %>% sample_n(20)
+df_part2 <- mnist_raw %>% filter(X1==x[2]) %>% sample_n(20)
+df_part3 <- mnist_raw %>% filter(X1==x[3]) %>% sample_n(20)
+
+df <- as.data.frame(df_part1)
+
+df <- bind_rows(df, df_part2)
+df <- bind_rows(df, df_part3)
+```
+
+## 3.b) Faça a redução dimensional do conjunto de dados para a dimensão 2 (dois). Para isso, use PCA.
+
+```{r}
+pca <- prcomp(df, scale = FALSE)
+scoresPC1 <- pca$x[, 1]
+scoresPC2 <- pca$x[, 2]
+labelDigits <- factor(df$X1)
+levels(factor(labelDigits)) # digitos
+
+dfPCA <- data.frame(scoresPC1,scoresPC2,as.numeric(as.character(labelDigits))) 
+```
+
+## 3.c) Estime o número de grupos ótimo, usando o método gap_stat. Dica: use a função fviz_nbclust().
+
+```{r}
+library(factoextra)
+
+fviz_nbclust(dfPCA, kmeans, method = "gap_stat")
+```
+
+## 3.d) Apresente os resultados do agrupamento por meio de métodos hierárquico e particionário.
+
+```{r}
+## hierárquico
+
+res.hc <- hclust( dist( dfPCA), method = "ward.D2")
+fviz_dend( res.hc, cex = 0.5, k = 3, palette = "jco")
+```
+
+```{r}
+## paticionário
+
+#set.seed( 123) # for reproducibility 
+
+km.res <- kmeans( dfPCA, 3, nstart = 25)
+
+# Visualize 
+
+fviz_cluster( km.res, data = dfPCA, palette = "jco", ggtheme = theme_minimal())
+```
+
+
+## 3.e) Discuta os resultados obtidos no item d. Aborde questões como: exatidão, diferenças de resultados entre os métodos obtidos, pertinência do número de clusters estimado, relevância da visualização dos resultados.
+
+### Exatidão
+
+> Com relação à exatidão o método Dendrograma apresentou errado a classificação de 2 linhas (linhas 12 e 46) do dataframe dfPCA (entre os digitos 2 e 9) enquanto que o Cluster Plot apresentou 3 linhas agrupadas em classe erradas (linhas 12, 35 e 46) do dfPCA. Porém a visualização desta exatidão fica mais intuitivo quando analisamos o gráfico particionário.
+
+### Diferenças de Resultados entre os métodos
+
+> Como apresentado no tópico anterior, o Dendrograma apresentou 2 erros, enquanto que o Cluster Plot apresentou 3 erros.
+
+> De acordo com os centros de massa calculados para as classes do Cluster Plot, vamos verificar suas características:
+
+>> Cluster 1:  709.96893  340.618472 (linha 40) - digito 9
+
+>> Cluster 2: -628.07689  243.682834 (linha 14) - digito 2
+
+>> Cluster 3:  389.67430 -780.983410 (Linha 60) - digito 1
+
+> Podemos verificar que para o cluster 1 tanto para o Dendrograma quanto para o Cluster plot  o fator de divisão do digito 9 dos digitos 1 e 2 foram as scoresPC1 e scoresPC2 serem positivas. já a diferença entre o agrupamento entre 1 e 2 é consequentemente o scoresPC2 negativo e o scoresPC1 negativo, respectivamente.
+
+
+### Pertinência do número de clusters estimado
+
+> O número de clusters estimados faz total sentido visto que foram selecionados três digitos diferentes do nosso dataframe original. Conforme o gráfico 'Optimal Number of clusters', é possível verificar que de 1 para 2 há um aumento na relevância estatística, e de 2 para 3 outro salto. De 3 para 4 não há grande diferença, neste sentido pode-se interpretar que a melhor quantidade de cluster para que esteja dentro de uma margem de segurança sem criar clusters acima do apropriado, e com maior confiabilidade. A quantidade 3 apresenta um ótimo desempenho e casa com a quantidade de dígitos diferentes selecionados.
+
+### Relevância da visualização dos resultados
+
+> O gráfico hierárquico, semelhante há uma árvore genealógica permite aferir também certo grau de similaridade entre os elementos analisados. Como os elementos escolhidos aleatoriamente foram o '1', '2' e '9', pode-se aferir maior proximidade dos digitos '1' e '2' abaixo do peso 6000. A partir da redução dimensional com o PCA, os nós do Dendrograma foram construidos com as ditâncias entre os valores calculados de scores1 e scores2 para cada digito. Os nós que possuem menor distância euclidiana são linhas próximas, ou até subsequentes, pertencentes de um mesmo dígito.
+
+> Já o gráfico particionário, apresenta os agrupamentos de forma mais visual. Assim, fica mais fácil de encontrar pontos de semelhança e discrepância entre os componentes analisado. Podemos verificar entre o Cluster 2 e 3 que houveram alguns pontos que nao foram corretamente agrupados: pontos 35 e 46 que ficaram trocados. O cluster 1 ficou bem delimitado sendo o dígito 2, o cluster 2 sendo o digito 9 e o cluster 3 sendo o digito 1. De acordo com o eixo horizontal, podemos verificar que os digitos 1 e 2 (clusters 1 e 3) estão na região -1 da dimensão 1, denotando mais semelhança do que com o cluster 2.
+

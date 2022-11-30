@@ -1,0 +1,205 @@
+---
+title: "Lista do Módulo 2"
+author: "Amanda Rosa Ferreira Jorge - 12112EBI001"
+output: 
+  html_document:
+    highlight: tango
+    includes:
+      after_body: psbfix.html
+---
+
+# Módulo 2
+
+### Exercício 1
+> Enunciado do ex 1 
+
+```{r}
+library(readr)
+
+mnist_raw <- read_csv("https://pjreddie.com/media/files/mnist_train.csv", col_names = FALSE) # acessando os dados no formato csv a partir de uma base de dados remota (armazenada em servidor remoto)
+
+# acessando os dados no formato csv a partir de uma base de dados local (armazenada no disco)
+#mnist_raw <- read_csv("./Dados/MINST/mnist_train.csv", col_names = FALSE, show_col_types = FALSE)
+```
+
+
+```{r}
+# Analise o trecho de código abaixo que exemplifica como podemos gerar a visualização dos dados do MNIST
+
+library(dplyr)
+library(tidyr)
+
+pixels_gathered2 <- mnist_raw %>% head(100) %>% 
+rename(label = 'X1') %>% 
+mutate(instance = row_number()) %>% 
+pivot_longer(!c(label, instance), names_to = "pixel", values_to = "value") %>%
+tidyr::extract(col = pixel, into = "pixel", regex = "(\\d+)", convert = TRUE)%>% mutate(pixel = pixel - 2,x = pixel %% 28,   y = 28 - pixel %/% 28 -1)
+
+# Seleção deapenas os 100 primeiro dígitos para análise
+
+#mnist_raw %>% head(100)
+
+# A variável X1 do base de dados armazena o rótulo do dígito, ou seja, o valor númerico associado à imagem. Ela foi renomeada para label
+
+#rename(label = "X1")
+
+# Criou-se a variável instance que recebeu o número da linha correspondente a cada dígito
+
+#mutate(instance = row_number())
+
+#  A função pivot_longer executa a operação de redução do número de variáveis simplificando o processo de plotagem
+
+# Para compreender mais digite vignette(“pivot”)
+
+#Mantém-se label e instance, e criando a variável pixel que armazena o nome de cada variável, e value que armazena o valor da cor
+
+#pivot_longer(!c(label, instance), names_to = "pixel", values_to = "value")
+
+# A variável pixel armazena os nomes das variáveis originais, X2, X3 e assim por diante
+
+# Para extrair os dígitos das strings utiliza-se a manipulação de expressões regulares REGEX
+
+# A expressão (\d+) extrai dígitos de strings e o parâmetro convert = TRUE força a conversão de string para inteiro.
+
+#tidyr::extract(col = pixel, into = "pixel", regex = "(\\d+)", convert = TRUE)
+
+# Os valores das coordenadas x e y podem ser calculados a partir da variável pixel. Para isso, as funções resto da divisão e quociente da divisão são usadas, com a finalidade de gerar sequências numéricas restritas pelas dimensões do dataframe (matriz)
+
+#mutate(pixel = pixel - 2,x = pixel %% 28,   y = 28 - pixel %/% 28 -1)
+
+# A função filter foi utilizada para a seleção de 12 digitos
+# Função ggplot(aes(x, y, fill = value)) gera o gráfico. 
+# Geom_tile() estabelece o tipo de gráfico e facet_wrap gera gráficos em múltiplos paineis de acordo com critérios (instance e label)
+
+library(ggplot2)
+theme_set(theme_light())
+pixels_gathered2 %>%  filter(instance <= 12) %>% 
+  ggplot(aes(x, y, fill = value)) +  geom_tile() +  
+  facet_wrap(~ instance + label)
+
+```
+#topico 1
+```{r}
+library(stringr)
+instancias <-  pixels_gathered2 %>%  filter(instance <= 12)
+digitos <- 0:9
+
+vetor_0 <- filter(instancias, label==0)
+vetor_1 <- filter(instancias, label==1)
+vetor_2 <- filter(instancias, label==2)
+vetor_3 <- filter(instancias, label==3)
+vetor_4 <- filter(instancias, label==4)
+vetor_5 <- filter(instancias, label==5)
+vetor_6 <- filter(instancias, label==6)
+vetor_7 <- filter(instancias, label==7)
+vetor_8 <- filter(instancias, label==8)
+vetor_9 <- filter(instancias, label==9)
+
+vetor_modelo_0 <- (summarize(vetor_0, instance)/dim(vetor_0)[1])
+vetor_modelo_0 <- vetor_modelo_0[1,1]
+
+vetor_modelo_1 <- summarize(vetor_1, instance)/dim(vetor_1)[1]
+vetor_modelo_1 <- vetor_modelo_1[1,1]
+
+vetor_modelo_2 <- summarize(vetor_2, instance)/dim(vetor_2)[1]
+vetor_modelo_2 <- vetor_modelo_2[1,1]
+
+vetor_modelo_3 <- summarize(vetor_3, instance)/dim(vetor_3)[1]
+vetor_modelo_3 <- vetor_modelo_3[1,1]
+
+vetor_modelo_4 <- summarize(vetor_4, instance)/dim(vetor_4)[1]
+vetor_modelo_4 <- vetor_modelo_4[1,1]
+
+vetor_modelo_5 <- summarize(vetor_5, instance)/dim(vetor_5)[1]
+vetor_modelo_5 <- vetor_modelo_5[1,1]
+
+vetor_modelo_6 <- summarize(vetor_6, instance)/dim(vetor_6)[1]
+vetor_modelo_6 <- vetor_modelo_6[1,1]
+
+vetor_modelo_7 <- summarize(vetor_7, instance)/dim(vetor_7)[1]
+vetor_modelo_7 <- vetor_modelo_7[1,1]
+
+vetor_modelo_8 <- summarize(vetor_8, instance)/dim(vetor_8)[1]
+vetor_modelo_8 <- vetor_modelo_8[1,1]
+
+vetor_modelo_9 <- summarize(vetor_9, instance)/dim(vetor_9)[1]
+vetor_modelo_9 <- vetor_modelo_9[1,1]
+
+digitos <- 1:10
+
+# for (i in digitos){
+mat <- matrix(1:10, nrow=10, ncol=1)
+
+mat[1,1] <- vetor_modelo_0
+mat[2,1] <- vetor_modelo_1
+mat[3,1] <- vetor_modelo_2
+mat[4,1] <- vetor_modelo_3
+mat[5,1] <- vetor_modelo_4
+mat[6,1] <- vetor_modelo_5
+mat[7,1] <- vetor_modelo_6
+mat[8,1] <- vetor_modelo_7
+mat[9,1] <- vetor_modelo_8
+mat[10,1] <- vetor_modelo_9
+
+print(mat)
+
+df <- data.frame(mat)
+#   
+# }
+
+```
+```{r} 
+grafico <- ggplot(df, aes(x= , y = mat))
+print(grafico)
+# aprender a plotar os pontoss
+```
+
+# tópico 2
+```{r}
+
+```
+
+
+### Exemplo prático 3
+
+```{R}
+b <- c(1, 1, 1, 1) # bias
+x1 <- c(1, 1, -1, -1)  # entrada 1
+x2 <- c(1, -1, 1 , -1) # entrada 2
+
+X <- matrix(c(b,x1,x2), nrow = 4) # matriz de entrada
+
+W0 <- matrix(c(0.3, 0.1, 0.9), nrow = 3) # matriz de pesos
+t(t(if_else(X%*%W0 >0, 1, -1)))
+```
+
+```{r}
+W1 <- matrix(c(0.1, 0.3, 0.7), nrow = 3) # matriz de pesos
+t(t(if_else(X%*%W1 >0, 1, -1)))
+```
+```{r}
+W2 <- matrix(c(-0.1, 0.5, 0.5), nrow = 3) # matriz de pesos
+t(t(if_else(X%*%W2 >0, 1, -1)))
+```
+```{r}
+library(ggplot2)
+x1 <- c(1, 1, -1, -1)  # entrada 1
+x2 <- c(1, -1, 1 , -1) # entrada 2
+df <- data.frame(x1,x2)
+
+fun.0 <- function(x) -(0.3 - 0.1*x)/0.9 # equação da reta
+fun.1 <- function(x) -(0.1 - 0.3*x)/0.7 # equação da reta
+
+fun.2 <- function(x) (0.1 - 0.5*x)/0.5 # equação da reta
+
+p <- ggplot(df, aes(x = x1, y = x2)) +
+  geom_point(size = 5) +  
+  stat_function(fun = fun.0, size = 1.5, aes(colour = "1")) + 
+  stat_function(fun = fun.1, size = 1.5, aes(colour = "2")) +
+  stat_function(fun = fun.2, size = 1.5, aes(colour = "3")) +
+  xlim(-1.5,1.5) + theme_light(base_size = 14)  +
+  scale_colour_manual("Atualização dos Pesos", values = c("red", "blue", "green"))
+print(p)
+```
+
+

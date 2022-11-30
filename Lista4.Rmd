@@ -1,0 +1,415 @@
+---
+title: "Lista do Módulo 4"
+author: "Amanda Rosa Ferreira Jorge - 12112EBI001| PPGEB-UFU | Docente: Prof. Adriano Andrade"
+output: 
+  html_document:
+    highlight: tango
+    includes:
+      after_body: psbfix.html
+---
+
+# Exercício 1
+
+## Considerando os dados da Tabela do DataSet1
+
+```{r}
+library(openxlsx)
+library(dplyr)
+library(tidyr)
+
+df1 <- read.xlsx("DataSet1.xlsx")
+```
+
+```{r}
+library(tibble)
+library(ggplot2)
+
+# Convertendo dados da coluna Pais em nomes de linhas
+X <- column_to_rownames(df1, var = "Pais")
+
+# Calculando as componentes principais
+pca1 <- prcomp(X, scale = FALSE)
+
+# Avaliação da proporção em % da variabilidade explicada por cada componente
+pVarPC <- pca1$sdev^2/sum(pca1$sdev^2) * 100 
+PCAnames <- as.factor(attr(pca1$x,"dimnames")[[2]])
+
+# Avaliação da proporção em % da variabilidade explicada por cada componente
+pVarPC <- pca1$sdev^2/sum(pca1$sdev^2) * 100 
+PCAnames <- as.factor(attr(pca1$x,"dimnames")[[2]])
+
+# Scree plot
+dfplot <- data.frame(PCAnames, pVarPC)
+
+ggplot(data = dfplot,
+       aes(x = PCAnames, y = pVarPC, group=1)) +
+  geom_line(size = 1) + geom_point() + 
+  theme_light(base_size = 14) + 
+  labs(title = "Scree plot", x="", y="% da variância explicada")
+
+
+```
+
+```{r}
+# Variância acumulada
+cum_pVarPC <- cumsum(pVarPC) # proporção acumulada
+dfplot <- data.frame(PCAnames, cum_pVarPC)
+
+ggplot(data = dfplot,
+       aes(x = PCAnames, y = cum_pVarPC, group=1)) +
+  geom_line(size = 1) + geom_point() + 
+  theme_light(base_size = 14) + 
+  labs(title = "Variância acumulada", x="", y="% da variância acumulada")
+```
+
+> A variância acumulada com a componente principal 1 e 2, detém mais de 90% da variância dos dados. Fato que expressa um resultado excelente, visto que temos até 784 componentes principais.
+
+###  1.a Calcule a matriz de covariância.
+
+```{r}
+Cov_mat <- cov(X)
+Cov_mat
+```
+
+### 1.b Descreva a relação entre as variáveis com base na interpretação dos valores da matriz de covariância.
+
+> De acordo a matriz de covariância, podemos verificar que a variável Padrao de Vida possui uma relacao positiva com todas as outras variáveis, ou seja, é possivel concluir que quanto maior o Padrao de Vida, consequemente, mais expressivamente maior Segurança, maior Hospitalidade e Infraestrutura. A covariância entre Padrao de Vida Clima ou Comida não é muito grande.
+
+> Com relação ao Clima, este possui relação positiva com a Comida. Podemos então aferir que quanto maior o clima, melhor a agricultura, cultivo de alimentos e nutrição à população. O clima possui relação negativa com a Segurança, Hospitalidade e Infraestrtura. Quanto menor o clima, maior a hospitalidade, maior a segurança e maior a infraestrutura. E vice-versa. Os países europeus cujo desenvolvimento socio-economico é maior, possuem climas mais frios.
+
+> A variável Comida possui relação negativa com a Segurança, Hospitalidade e Infraestrutura. Geralmente, países com clima mais troicais possuem grande disponibilidade de produção de comida, possuem territórios férteis e a renda PIB do país possui participação na exportação destes alimentos, ou seja, são geralmente países subdesenvolvidos que apresentam baixa segurança, infraestrutura e hospitalidade conforme visto.
+
+> A variável Segurança apresenta realação positiva com a Hospitalidade e com a Infraestrutura, geralmente países que investem em Segurança também investem em Infraestrutura porque faz parte da demandas das necessidades sociais. A Hospitalidade trás consigo uma vertente educacional do povo em um país, tem relaçao com a cultura, entre outros motivos. Mas podemos refletir sobre o fato de um país mais seguro, ser mais hospitaleiro, em decorrência de ser um ciclo retroalimentado.
+
+> E por fim, a Hospitalidade possui relacao positiva com a Infraestrutura, fato que também faz total sentido visto que países que investem em Infraestrutura, possuem um nível educacional maior. Também deve-se atentar à questões culturais, para a variável Hospitalidade, pois não é uma variável extritamente dependente do nível econômico do país.
+
+
+### 1.c Calcule os autovalores e autovetores da matriz de covariância.
+
+```{r}
+auto <- eigen(Cov_mat)
+autovalores <- auto$values
+autovetores <- auto$vectors
+
+print(autovalores)
+print(autovetores)
+```
+
+
+### 1.d Qual a interpretação dos autovalores obtidos?
+
+> A interpretacao a partir dos autovalores obtidos é que, sabendo que a saída ja está ordenada, o maior autovalor que possui a maior variância dos dados na direção do autovetor da PCA1 é de 17.888. Em segundo, o maior autovalor do segundo autovetor possui variância de dados de 10.820 e assim por diante até o autovalor 6 do sexto autovetor. De fato, a quantidade de autovetor/valores que vamos obter é igual ao numero de dimensões à base de dados que estamos analisando, ou seja, 6 características de acordo com os países analisados (padrao de vida, comida, clima, seguranca, hospitalidade e infraestrutura). Quanto maior variância abordada por uma componente principal calculada, melhor.
+
+
+
+### 1.e Plote um gráfico que ilustre a direçao das variáveis do problema.
+
+```{r}
+
+ppR <- prcomp(X, scale = FALSE)
+
+summary(ppR)
+biplot(ppR)
+
+```
+
+> Com o gráfico acima podemos verificar que os autovetores da variáveis Clima e Comida estão mais propensos à  Brasil, Turquia do que à Rússia, como é caracterizado melhores condições climáticas maior produtividade alimentícia, opostamente à Rússia. Os autovetores, Padrao de Vida, Infraestrutura e Segurança estão intimamente relacionados com França, Alemanha e Croacia, opostamente à Mexico, África do Sul e Nigéria. 
+
+
+# Exercício 2 
+
+## Considerando o banco de dados de digitos manuscritos, MNIST
+
+```{r}
+library(readr)
+
+mnist_raw <- read_csv("mnist_train.csv", col_names = FALSE, show_col_types = FALSE) # acessando os dados no formato csv a partir de uma base de dados remota (armazenada em servidor remoto)
+
+# convertendo o tipo de dados para dataframe
+mnist_raw <- as.data.frame(mnist_raw)
+```
+
+### 2.a Selecione, a partir das 60.000 amostras disponíveis, 100 exemplos de cada um dos dígitos disponíveis.
+
+```{r}
+library(dplyr)
+library(imager)
+library(tidyr)
+
+# são selecionados 100 amostras de cada digito
+
+set.seed(123)
+df_0 <- mnist_raw %>% filter(X1==0) %>% sample_n(100)
+df_1 <- mnist_raw %>% filter(X1==1) %>% sample_n(100)
+df_2 <- mnist_raw %>% filter(X1==2) %>% sample_n(100)
+df_3 <- mnist_raw %>% filter(X1==3) %>% sample_n(100)
+df_4 <- mnist_raw %>% filter(X1==4) %>% sample_n(100)
+df_5 <- mnist_raw %>% filter(X1==5) %>% sample_n(100)
+df_6 <- mnist_raw %>% filter(X1==6) %>% sample_n(100)
+df_7 <- mnist_raw %>% filter(X1==7) %>% sample_n(100)
+df_8 <- mnist_raw %>% filter(X1==8) %>% sample_n(100)
+df_9 <- mnist_raw %>% filter(X1==9) %>% sample_n(100)
+```
+
+
+
+```{r}
+
+df <- as.data.frame(df_0)
+df <- bind_rows(df, df_1)
+df <- bind_rows(df, df_2)
+df <- bind_rows(df, df_3)
+df <- bind_rows(df, df_4)
+df <- bind_rows(df, df_5)
+df <- bind_rows(df, df_6)
+df <- bind_rows(df, df_7)
+df <- bind_rows(df, df_8)
+df <- bind_rows(df, df_9)
+
+df <- df[,c(1:785)]
+
+```
+
+
+
+### 2.b Plote uma imagem que representa a média de cada um dos dígitos. 
+
+```{r}
+library (ggplot2)
+
+pixels <- df %>% rename(label = X1) %>% 
+mutate(instance = row_number()) %>%
+pivot_longer(!c(label, instance), names_to = "pixel", values_to = "value") %>%
+tidyr::extract(col = pixel, into = "pixel", regex = "(\\d+)", convert = TRUE)%>% mutate(pixel = pixel - 2,x = pixel %% 28,   y = 28 - pixel %/% 28 -1)
+
+
+medias_ <- pixels %>% group_by(label, pixel, x,y) %>% summarise(medias = mean(value))
+
+
+theme_set(theme_light())
+medias_ %>% 
+  ggplot(aes(x, y, fill = medias)) +  geom_tile() +  
+  facet_wrap(~ label)
+```
+
+## 2.c Calcule a PCA dos dados selecionados no item a.
+
+```{r}
+library(factoextra)
+
+XX <- df[ , 2:ncol(df)]
+
+pca_df <- prcomp(XX, scale = FALSE)
+
+
+```
+
+### 2.d Gere um gráfico com as observações, no espaço definido pelas duas principais componentes, que melhor expliquem a variabilidade dos dados. 
+
+```{r}
+scoresPC1 <- pca_df$x[, 1]
+scoresPC2 <- pca_df$x[, 2]
+labelDigits <- factor(df$X1)
+levels(factor(labelDigits)) # digitos
+
+dfPCA <- data.frame(scoresPC1, scoresPC2, labelDigits)
+
+group.colors <- c("0" = "#33FFFF", "1" = "#333BFF", "2" = "#CC6600", "3" ="#9633FF", "4"= "#E2FF33", "5" = "#E3DB71", "6" = "#E3DB74", "7" = "#A3DB74",
+                  "8" = "#E3DC74", "9" = "#E21B74")
+
+
+ggplot(data =dfPCA, aes(x = scoresPC1, y=scoresPC2, color = labelDigits)) + 
+  geom_point() + 
+  scale_color_manual(values=group.colors) + 
+  theme_light(base_size = 14)
+
+
+```
+
+> A partir das 100 amostras de cada digito selecionadas a partir do Banco de Dados MNIST, é possivel verificar que há uma distribuição visual entre os dígitos com somente duas dimensões. O digito zero apresenta menor scoresPC1 do que todos os outros digitos. O digito 1 se apresenta no canto superior direito. O digito 3 na bord superior com scoresPC1 em torno de zero e scorepC2 entre 500 e 1000. Os digitos 4, 5, 6 e 8 um pouco menos visivel a separação entre si. E os digitos 7 e 9, apresentam agrupamento no canto inferior esquerdo com  scorePC1 acima de 0 e scorePC2 abaixo de 0. Diante da dimensionalidade do conjunto de dados amostrado, as duas componentes principais apresentaram alto desempenho na diferenciação dos digitos.
+
+```{r}
+
+# Scree plot
+fviz_eig(pca_df, addlabels = TRUE, ylim = c(0, 20)) + theme_light(base_size = 14)
+
+```
+
+> Podemos verificar que a Componente Principal 1 detém 9.8% do total da variância dos dados. Como obteremos grandes dimensoes visto que temos 784 variáveis, teremos 784 PCs. Então, é um resultado muito bom para uma única componente principal em uma dimensionalidade tão grande. Já a segunda componente principal apresenta 6.8% da variância total, o que também representa ótimo resultado. O gráfico acima apresenta até a décima componente principal.
+
+```{r}
+# Avaliação das variáveis
+
+
+fviz_pca_var(pca_df, col.var = "black") + theme_light(base_size = 14)
+fviz_pca_ind(pca_df, pointsize = "cos2", 
+             pointshape = 21, fill = "#E7B800",
+             repel = TRUE # Avoid text overlapping (slow if many points)
+             )
+```
+
+> Como um valor de cos2 alto indica uma boa representacao da variável na componente principal, a partir do gráfico "Individuals - PCA" podemos verificar que as componentes principais 1 e 2 apresentam um valor 0.6 satisfatório para o cosseno ao quadrado.
+
+
+
+# Exercicio 3 
+
+### Faça a reconstrução das imagens da questão 2 considerando as primeiras 20 componentes principais. 
+### Plote uma imagem que representa a média de cada um dos dígitos e faça um contraste com as imagens obtidas no item b da questão 2.
+
+```{r}
+
+library(imager)
+library(plotly)
+
+# para cada digito separadamente
+pca_df0 <- prcomp(df_0[ , 2:ncol(df_0)])
+pca_df1 <- prcomp(df_1[ , 2:ncol(df_1)])
+pca_df2 <- prcomp(df_2[ , 2:ncol(df_2)])
+pca_df3 <- prcomp(df_3[ , 2:ncol(df_3)])
+pca_df4 <- prcomp(df_4[ , 2:ncol(df_4)])
+pca_df5 <- prcomp(df_5[ , 2:ncol(df_5)])
+pca_df6 <- prcomp(df_6[ , 2:ncol(df_6)])
+pca_df7 <- prcomp(df_7[ , 2:ncol(df_7)])
+pca_df8 <- prcomp(df_8[ , 2:ncol(df_8)])
+pca_df9 <- prcomp(df_9[ , 2:ncol(df_9)])
+
+# Reconstrução dos dígitos a partir de 20 componentes principais
+
+#0
+
+imageRec0 <- pca_df0$x[, c(1:20)]%*% t(pca_df0$rotation[,c(1:20)])
+media_imageRec0 <- colMeans(imageRec0)
+media_pca_0 <- matrix(media_imageRec0[2:786], nrow=28, byrow= TRUE)
+imageRec01 <- media_pca_0 + pca_df0$center
+image(imageRec01[,nrow(imageRec01):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 0')
+
+#1
+
+imageRec1 <- pca_df1$x[, c(1:20)]%*% t(pca_df1$rotation[,c(1:20)])
+media_imageRec1 <- colMeans(imageRec1)
+media_pca_1 <- matrix(media_imageRec1[2:786], nrow=28, byrow= TRUE)
+imageRec11 <- media_pca_1 + pca_df1$center
+image(imageRec11[,nrow(imageRec11):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 1')
+
+#2
+
+imageRec2 <- pca_df2$x[, c(1:20)]%*% t(pca_df2$rotation[,c(1:20)])
+media_imageRec2 <- colMeans(imageRec2)
+media_pca_2 <- matrix(media_imageRec2[2:786], nrow=28, byrow= TRUE)
+imageRec21 <- media_pca_2 + pca_df2$center
+image(imageRec21[,nrow(imageRec21):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 2')
+
+#3
+
+imageRec3 <- pca_df3$x[, c(1:20)]%*% t(pca_df3$rotation[,c(1:20)])
+media_imageRec3 <- colMeans(imageRec3)
+media_pca_3 <- matrix(media_imageRec3[2:786], nrow=28, byrow= TRUE)
+imageRec31 <- media_pca_3 + pca_df3$center
+image(imageRec31[,nrow(imageRec31):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 3')
+
+#4
+
+imageRec4 <- pca_df4$x[, c(1:20)]%*% t(pca_df4$rotation[,c(1:20)])
+media_imageRec4 <- colMeans(imageRec4)
+media_pca_4 <- matrix(media_imageRec4[2:786], nrow=28, byrow= TRUE)
+imageRec41 <- media_pca_4 + pca_df4$center
+image(imageRec41[,nrow(imageRec41):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 4')
+
+#5
+
+imageRec5 <- pca_df5$x[, c(1:20)]%*% t(pca_df5$rotation[,c(1:20)])
+media_imageRec5 <- colMeans(imageRec5)
+media_pca_5 <- matrix(media_imageRec5[2:786], nrow=28, byrow= TRUE)
+imageRec51 <- media_pca_5 + pca_df4$center
+image(imageRec51[,nrow(imageRec51):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 5')
+
+#6
+
+imageRec6 <- pca_df6$x[, c(1:20)]%*% t(pca_df6$rotation[,c(1:20)])
+media_imageRec6 <- colMeans(imageRec6)
+media_pca_6 <- matrix(media_imageRec6[2:786], nrow=28, byrow= TRUE)
+imageRec61 <- media_pca_6 + pca_df6$center
+image(imageRec61[,nrow(imageRec61):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 6')
+
+#7
+
+imageRec7 <- pca_df7$x[, c(1:20)]%*% t(pca_df7$rotation[,c(1:20)])
+media_imageRec7 <- colMeans(imageRec7)
+media_pca_7 <- matrix(media_imageRec7[2:786], nrow=28, byrow= TRUE)
+imageRec71 <- media_pca_7 + pca_df7$center
+image(imageRec71[,nrow(imageRec71):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 7')
+
+#8
+
+imageRec8 <- pca_df8$x[, c(1:20)]%*% t(pca_df8$rotation[,c(1:20)])
+media_imageRec8 <- colMeans(imageRec8)
+media_pca_8 <- matrix(media_imageRec8[2:786], nrow=28, byrow= TRUE)
+imageRec81 <- media_pca_8 + pca_df8$center
+image(imageRec81[,nrow(imageRec81):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 8')
+
+#9
+
+imageRec9 <- pca_df9$x[, c(1:20)]%*% t(pca_df9$rotation[,c(1:20)])
+media_imageRec9 <- colMeans(imageRec9)
+media_pca_9 <- matrix(media_imageRec9[2:786], nrow=28, byrow= TRUE)
+imageRec91 <- media_pca_9 + pca_df9$center
+image(imageRec91[,nrow(imageRec91):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Reconstrucao Digito 9')
+
+```
+```{r}
+# Contraste
+
+media0 <- medias_ %>% filter(label == 0)
+media_mat0 <- matrix(media0$medias[1:786], nrow = 28, byrow=TRUE)
+result0 <- media_mat0 -  imageRec01
+image(result0[,nrow(imageRec01):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 0')
+
+
+media1 <- medias_ %>% filter(label == 1)
+media_mat1 <- matrix(media1$medias[1:786], nrow = 28, byrow=TRUE)
+result1 <- media_mat1 -  imageRec11
+image(result1[,nrow(imageRec11):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 1')
+
+media2 <- medias_ %>% filter(label == 2)
+media_mat2 <- matrix(media2$medias[1:786], nrow = 28, byrow=TRUE)
+result2 <- media_mat2 -  imageRec21
+image(result2[,nrow(imageRec21):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 2')
+
+media3 <- medias_ %>% filter(label == 3)
+media_mat3 <- matrix(media3$medias[1:786], nrow = 28, byrow=TRUE)
+result3 <- media_mat3 -  imageRec31
+image(result3[,nrow(imageRec31):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 3')
+
+media4 <- medias_ %>% filter(label == 4)
+media_mat4 <- matrix(media4$medias[1:786], nrow = 28, byrow=TRUE)
+result4 <- media_mat4 -  imageRec41
+image(result4[,nrow(imageRec41):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 4')
+
+media5 <- medias_ %>% filter(label == 5)
+media_mat5 <- matrix(media5$medias[1:786], nrow = 28, byrow=TRUE)
+result5 <- media_mat5 -  imageRec51
+image(result5[,nrow(imageRec51):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 5')
+
+media6 <- medias_ %>% filter(label == 6)
+media_mat6 <- matrix(media6$medias[1:786], nrow = 28, byrow=TRUE)
+result6 <- media_mat6 -  imageRec61
+image(result6[,nrow(imageRec61):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 6')
+
+media7<- medias_ %>% filter(label == 7)
+media_mat7 <- matrix(media7$medias[1:786], nrow = 28, byrow=TRUE)
+result7 <- media_mat7 -  imageRec71
+image(result7[,nrow(imageRec71):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 7')
+
+media8 <- medias_ %>% filter(label == 8)
+media_mat8 <- matrix(media8$medias[1:786], nrow = 28, byrow=TRUE)
+result8 <- media_mat8 -  imageRec81
+image(result8[,nrow(imageRec81):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 8')
+
+media9 <- medias_ %>% filter(label == 9)
+media_mat9 <- matrix(media9$medias[1:786], nrow = 28, byrow=TRUE)
+result9 <- media_mat9 -  imageRec91
+image(result9[,nrow(imageRec91):1], useRaster=TRUE, axes=FALSE, col = gray.colors(33), main = 'Contraste Digito 9')
+```
+
+> A partir do contraste apresentado entre a média dos digitos, e a média da reconstrução a partir das 20 componentes principais, pode-se aferir que estas englobaram grande parte da variância dos dados de modo que o contraste não se apresentou de forma muito expressiva. Ou seja, em uma base de dados muito grande é importante refletir que a análise a partir das componentes principais pode se aproximar muito de uma análise bruta dos dados do banco de dados.
